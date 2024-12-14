@@ -3,10 +3,11 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
-    TokenVerifyView
+    TokenVerifyView,
 )
 
-from user.views import CreateUserView, ManageUserView
+from user.views import CreateUserView, ManageUserView, LogoutView
+
 
 urlpatterns = [
    path("register/", CreateUserView.as_view(), name="create"),
@@ -22,6 +23,7 @@ urlpatterns = [
     ),
     path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
     path("me/", ManageUserView.as_view(), name="me"),
+    path("logout/", LogoutView.as_view(), name="logout"),
 ]
 
 app_name = "user"
