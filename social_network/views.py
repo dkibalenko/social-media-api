@@ -5,7 +5,7 @@ from rest_framework import generics
 from rest_framework import mixins
 
 from social_network.models import Profile
-from social_network.serializers import ProfileSerializer
+from social_network.serializers import ProfileSerializer, ProfileListSerializer
 
 
 class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
@@ -33,4 +33,4 @@ class ProfileViewSet(
     viewsets.GenericViewSet
 ):
     queryset = Profile.objects.all()
-    serializer_class = ProfileSerializer
+    serializer_class = ProfileListSerializer
