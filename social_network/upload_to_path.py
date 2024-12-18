@@ -19,8 +19,8 @@ class UploadToPath:
 
     def get_filename(self, instance: object, filename: str) -> str:
         _, extension = os.path.splitext(filename)
-        return f"{slugify(f'{instance.first_name}-{instance.last_name}')}-\
-            {uuid.uuid4()}{extension}"
+        slug_base = slugify(f"{instance.first_name}-{instance.last_name}")
+        return f"{slug_base}-{uuid.uuid4()}{extension}"
 
     def generate_upload_path(self, instance: object, filename: str) -> str:
         return os.path.join(
