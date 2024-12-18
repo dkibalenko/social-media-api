@@ -34,3 +34,26 @@ class ProfileViewSet(
 ):
     queryset = Profile.objects.all()
     serializer_class = ProfileListSerializer
+
+    def get_queryset(self):
+        """
+        Returns a filtered queryset of Profile objects
+        based on query parameters.
+        """
+
+        username = self.request.query_params.get("username")
+        first_name = self.request.query_params.get("first_name")
+        last_name = self.request.query_params.get("last_name")
+
+        queryset = super().get_queryset()
+
+        if username:
+            queryset = queryset.filter(username__icontains=username)
+
+        if first_name:
+            queryset = queryset.filter(first_name__icontains=first_name)
+
+        if last_name:
+            queryset = queryset.filter(last_name__icontains=last_name)
+
+        return queryset.distinct()
