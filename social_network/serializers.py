@@ -1,10 +1,12 @@
 from rest_framework import serializers
 
-from social_network.models import Profile
+from social_network.models import Profile, FollowingInteraction
 
 
 class ProfileSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source="user.email", read_only=True)
+    followers_total = serializers.IntegerField(read_only=True)
+    following_total = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Profile
@@ -18,6 +20,8 @@ class ProfileSerializer(serializers.ModelSerializer):
             "birth_date",
             "phone_number",
             "bio",
+            "followers_total",
+            "following_total",
         )
 
     def update(self, instance, validated_data):
