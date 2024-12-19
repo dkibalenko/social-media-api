@@ -8,6 +8,9 @@ from django.utils.text import slugify
 
 @deconstructible
 class UploadToPath:
+    """
+    A callable class used to generate unique file paths for uploaded files.
+    """
     def __init__(self, upload_to: str) -> None:
         self.upload_to = upload_to
 
