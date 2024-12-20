@@ -8,7 +8,11 @@ from rest_framework import generics
 from rest_framework import mixins
 
 from social_network.models import Profile
-from social_network.serializers import ProfileSerializer, ProfileListSerializer
+from social_network.serializers import (
+    ProfileSerializer,
+    ProfileListSerializer,
+    ProfileDetailSerializer,
+)
 
 
 class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
@@ -21,10 +25,10 @@ class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self) -> QuerySet[Profile]:
         return (
             Profile.objects.filter(user=self.request.user)
-            .prefetch_related("following", "followers")
+            .prefetch_related("followees", "followers")
             .annotate(
                 followers_total=Count("followers"),
-                following_total=Count("following")
+                followees_total=Count("followees")
             )
         )
 
@@ -43,6 +47,13 @@ class ProfileViewSet(
 ):
     queryset = Profile.objects.all()
     serializer_class = ProfileListSerializer
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return ProfileListSerializer
+        if self.action == "retrieve":
+            return ProfileDetailSerializer
+        return ProfileSerializer
 
     def get_queryset(self):
         """

@@ -31,15 +31,17 @@ class Profile(models.Model):
 
 
 class FollowingInteraction(models.Model):
+    # a profile follows other profiles(followees)
     follower = models.ForeignKey(
         Profile,
         on_delete=models.CASCADE,
-        related_name="following",
+        related_name="followees",  # allow access the profiles this user is following(using profile.followees)
     )
+    # a profile is followed by other profiles(followers)
     followee = models.ForeignKey(
         Profile,
         on_delete=models.CASCADE,
-        related_name="followers",
+        related_name="followers",  # allow access the profiles following this user(using profile.followers)
     )
     followed_at = models.DateTimeField(auto_now_add=True)
 
