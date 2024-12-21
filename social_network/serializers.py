@@ -102,3 +102,6 @@ class ProfileDetailSerializer(ProfileSerializer):
             "followers",
             "followees",
         )
+
+class EmptySerializer(serializers.Serializer):
+    pass
