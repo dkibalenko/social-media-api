@@ -16,6 +16,8 @@ from social_network.serializers import (
     ProfileListSerializer,
     ProfileDetailSerializer,
     EmptySerializer,
+    FollowerSerializer,
+    FolloweeSerializer,
 )
 
 
@@ -147,3 +149,21 @@ class ProfileViewSet(
             {"detail": "You are no longer following this user."},
             status=status.HTTP_200_OK
         )
+
+
+class CurrentUserProfileFollowersView(generics.ListAPIView):
+    serializer_class = FollowerSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self) -> QuerySet[FollowingInteraction]:
+        user = self.request.user
+        return user.profile.followers.all()
+
+
+class CurrentUserProfileFolloweesView(generics.ListAPIView):
+    serializer_class = FolloweeSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self) -> QuerySet[FollowingInteraction]:
+        user = self.request.user
+        return user.profile.followees.all()
