@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework.generics import get_object_or_404
 
-from social_network.models import Profile, FollowingInteraction
+from social_network.models import HashTag, Profile, FollowingInteraction, Post
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -105,3 +105,74 @@ class ProfileDetailSerializer(ProfileSerializer):
 
 class EmptySerializer(serializers.Serializer):
     pass
+
+
+class HashTagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HashTag
+        fields = ("id", "caption")
+
+
+class PostSerializer(serializers.ModelSerializer):
+    author_username = serializers.CharField(
+        source="author.username",
+        read_only=True
+    )
+    author_full_name = serializers.CharField(
+        source="author.full_name",
+        read_only=True
+    )
+    author_image = serializers.ImageField(
+        source="author.profile_image",
+        read_only=True
+    )
+    image = serializers.ImageField(read_only=True, required=False)
+    hashtags = serializers.ListField(
+        child=serializers.CharField(max_length=50),
+        write_only=True,
+        required=False
+    )
+    # hashtags_objects = HashTagSerializer(
+    #     source="hashtags",
+    #     many=True,
+    #     read_only=True
+    # )
+    hashtags_objects = serializers.StringRelatedField(
+        source="hashtags",
+        many=True,
+        read_only=True
+    )
+
+    class Meta:
+        model = Post
+        fields = (
+            "id",
+            "title",
+            "hashtags",
+            "hashtags_objects",
+            "content",
+            "image",
+            "author_username",
+            "author_full_name",
+            "author_image",
+            "created_at"
+        )
+
+    def create(self, validated_data) -> Post:
+        """
+        Creates a new Post instance with the given validated data and
+        adds any provided hashtag captions to the post's hashtags.
+        """
+        hashtags_data = validated_data.pop("hashtags", [])
+        post = Post.objects.create(**validated_data)
+
+        for caption in hashtags_data:
+            hashtag, created = HashTag.objects.get_or_create(caption=caption)
+            post.hashtags.add(hashtag)
+        return post
+
+
+class PostImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ("id","image",)
