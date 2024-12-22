@@ -50,3 +50,38 @@ class FollowingInteraction(models.Model):
 
     def __str__(self):
         return f"{self.follower} follows {self.followee}"
+    
+
+class HashTag(models.Model):
+    caption = models.CharField(max_length=50)
+
+    def __str__(self):
+        return f"{self.caption}"
+
+
+class Post(models.Model):
+    title = models.CharField(max_length=80)
+    content = models.TextField()
+    image = models.ImageField(
+        upload_to=UploadToPath("post_images/"),
+        blank=True,
+        null=True,
+    )
+    hashtags = models.ManyToManyField(
+        to=HashTag,
+        related_name="posts",
+        blank=True,
+        null=True,
+    )
+    author = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name="posts",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Post by {self.author} at {self.created_at}"
