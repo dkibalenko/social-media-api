@@ -22,7 +22,10 @@ class UploadToPath:
 
     def get_filename(self, instance: object, filename: str) -> str:
         _, extension = os.path.splitext(filename)
-        slug_base = slugify(f"{instance.first_name}-{instance.last_name}")
+        if hasattr(instance, "first_name") and hasattr(instance, "last_name"):
+            slug_base = slugify(f"{instance.first_name}-{instance.last_name}")
+        elif hasattr(instance, "title"):
+            slug_base = slugify(instance.title)
         return f"{slug_base}-{uuid.uuid4()}{extension}"
 
     def generate_upload_path(self, instance: object, filename: str) -> str:
