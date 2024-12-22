@@ -10,14 +10,16 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import serializers
 
-from social_network.models import FollowingInteraction, Profile
+from social_network.models import FollowingInteraction, HashTag, Post, Profile
 from social_network.serializers import (
+    PostImageSerializer,
     ProfileSerializer,
     ProfileListSerializer,
     ProfileDetailSerializer,
     EmptySerializer,
     FollowerSerializer,
     FolloweeSerializer,
+    PostSerializer,
 )
 
 
@@ -93,6 +95,7 @@ class ProfileViewSet(
     @action(
         detail=True,
         methods=["post"],
+        url_path="follow",
         permission_classes=[IsAuthenticated]
     )
     def follow(self, request, pk: int) -> Response:
@@ -167,3 +170,46 @@ class CurrentUserProfileFolloweesView(generics.ListAPIView):
     def get_queryset(self) -> QuerySet[FollowingInteraction]:
         user = self.request.user
         return user.profile.followees.all()
+
+
+class PostViewSet(viewsets.ModelViewSet):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = PostSerializer
+    queryset = Post.objects.all()
+
+    def get_serializer_class(self) -> serializers.BaseSerializer:
+        if self.action == "list":
+            return PostSerializer
+        if self.action == "upload_image":
+            return PostImageSerializer
+        return PostSerializer
+
+    def perform_create(self, serializer: serializers.ModelSerializer) -> None:
+        """
+        Saves the post instance with the current user's profile as the author,
+        and associates any provided hashtags with the post.
+
+        Args:
+            serializer: The serializer containing the validated data
+                for the post to be created.
+        """
+        hashtag_data = serializer.validated_data.pop("hashtags", [])
+        post = serializer.save(author=self.request.user.profile)
+
+        for caption in hashtag_data:
+            hashtag, created = HashTag.objects.get_or_create(caption=caption)
+            post.hashtags.add(hashtag)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="upload-image",
+    )
+    def upload_image(self, request, pk: int=None) -> Response:
+        post = get_object_or_404(Post, pk=pk)
+        post.image = request.data["image"]
+        post.save()
+        return Response(
+            {"detail": "Image uploaded successfully."},
+            status=status.HTTP_200_OK
+        )
