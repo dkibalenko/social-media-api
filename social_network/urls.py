@@ -8,6 +8,7 @@ app_name = "social_network"
 router = routers.DefaultRouter()
 
 router.register("profiles", views.ProfileViewSet, basename="profiles")
+router.register("posts", views.PostViewSet, basename="posts")
 
 urlpatterns = [
     path("", include(router.urls)),
