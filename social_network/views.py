@@ -184,7 +184,7 @@ class PostViewSet(viewsets.ModelViewSet):
             return PostImageSerializer
         return PostSerializer
 
-    def perform_create(self, serializer: serializers.ModelSerializer) -> None:
+    def perform_create(self, serializer: PostSerializer) -> None:
         """
         Saves the post instance with the current user's profile as the author,
         and associates any provided hashtags with the post.
@@ -213,3 +213,28 @@ class PostViewSet(viewsets.ModelViewSet):
             {"detail": "Image uploaded successfully."},
             status=status.HTTP_200_OK
         )
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="my-posts",
+    )
+    def my_posts(self, request) -> Response:
+        queryset = Post.objects.filter(author=request.user.profile)
+        serializer = PostSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="followees-posts",
+    )
+    def followees_posts(self, request) -> Response:
+        user_profile = request.user.profile
+        followees_profiles = user_profile.followees.values_list(
+            "followee",
+            flat=True
+        )
+        followees_posts = Post.objects.filter(author__in=followees_profiles)
+        serializer = PostSerializer(followees_posts, many=True)
+        return Response(serializer.data)
