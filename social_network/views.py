@@ -177,6 +177,31 @@ class PostViewSet(viewsets.ModelViewSet):
     serializer_class = PostSerializer
     queryset = Post.objects.all()
 
+    def get_queryset(self) -> QuerySet[Post]:
+        """
+        Returns a filtered queryset of Post objects based on query parameters.
+
+        Query parameters that can be used to filter the queryset are:
+
+        - `hashtag`: The caption of a hashtag to filter by.
+        - `author_username`: The username of the author to filter by.
+
+        The filtering is case-insensitive.
+        """
+        queryset = super().get_queryset()
+        hashtag = self.request.query_params.get("hashtag")
+        author_username = self.request.query_params.get("author_username")
+
+        if hashtag:
+            queryset = queryset.filter(hashtags__caption__iexact=hashtag)
+
+        if author_username:
+            queryset = queryset.filter(
+                author__username__icontains=author_username
+            )
+
+        return queryset
+
     def get_serializer_class(self) -> serializers.BaseSerializer:
         if self.action == "list":
             return PostSerializer
