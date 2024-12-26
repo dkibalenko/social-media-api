@@ -307,3 +307,14 @@ class PostViewSet(viewsets.ModelViewSet):
             {"detail": "You have unliked this post."},
             status=status.HTTP_200_OK
         )
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="liked",
+    )
+    def liked(self, request) -> Response:
+        user_profile = request.user.profile
+        liked_posts = self.get_queryset().filter(likes__profile=user_profile)
+        serialzer = PostSerializer(liked_posts, many=True)
+        return Response(serialzer.data)
