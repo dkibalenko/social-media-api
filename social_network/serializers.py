@@ -1,7 +1,13 @@
 from rest_framework import serializers
 from rest_framework.generics import get_object_or_404
 
-from social_network.models import HashTag, Profile, FollowingInteraction, Post
+from social_network.models import (
+    HashTag,
+    Profile,
+    FollowingInteraction,
+    Post,
+    Like,
+)
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -176,3 +182,14 @@ class PostImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ("id","image",)
+
+
+class LikeSerializer(serializers.ModelSerializer):
+    liked_by = serializers.StringRelatedField(
+        source="profile.username",
+        read_only=True
+    )
+
+    class Meta:
+        model = Like
+        fields = ("id", "liked_by")
