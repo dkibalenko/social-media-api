@@ -105,3 +105,24 @@ class Like(models.Model):
 
     def __str__(self):
         return f"{self.profile} liked {self.post} at {self.liked_at}"
+
+
+class Comment(models.Model):
+    author = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
+    content = models.TextField()
+    commented_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["commented_at"]
+
+    def __str__(self):
+        return f"{self.author} commented on {self.post} at {self.commented_at}"
