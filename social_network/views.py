@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import serializers
 
-from social_network.models import FollowingInteraction, HashTag, Post, Profile
+from social_network.models import FollowingInteraction, HashTag, Like, Post, Profile
 from social_network.serializers import (
     PostImageSerializer,
     ProfileSerializer,
@@ -207,6 +207,8 @@ class PostViewSet(viewsets.ModelViewSet):
             return PostSerializer
         if self.action == "upload_image":
             return PostImageSerializer
+        if self.action in ["like", "unlike"]:
+            return EmptySerializer
         return PostSerializer
 
     def perform_create(self, serializer: PostSerializer) -> None:
@@ -263,3 +265,45 @@ class PostViewSet(viewsets.ModelViewSet):
         followees_posts = Post.objects.filter(author__in=followees_profiles)
         serializer = PostSerializer(followees_posts, many=True)
         return Response(serializer.data)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="like",
+    )
+    def like(self, request, pk: int) -> Response:
+        post = get_object_or_404(Post, pk=pk)
+        user_profile = request.user.profile
+
+        if Like.objects.filter(post=post, profile=user_profile).exists():
+            return Response(
+                {"detail": "You have already liked this post."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        Like.objects.create(post=post, profile=user_profile)
+        return Response(
+            {"detail": "You have liked this post."},
+            status=status.HTTP_201_CREATED
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="unlike",
+    )
+    def unlike(self, request, pk: int) -> Response:
+        post = get_object_or_404(Post, pk=pk)
+        user_profile = request.user.profile
+
+        if not Like.objects.filter(post=post, profile=user_profile).exists():
+            return Response(
+                {"detail": "You have not liked this post."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        Like.objects.filter(post=post, profile=user_profile).delete()
+        return Response(
+            {"detail": "You have unliked this post."},
+            status=status.HTTP_200_OK
+        )
