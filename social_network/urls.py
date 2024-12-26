@@ -1,5 +1,5 @@
 from django.urls import path, include
-from rest_framework import routers
+from rest_framework_nested import routers
 
 from social_network import views
 
@@ -10,8 +10,16 @@ router = routers.DefaultRouter()
 router.register("profiles", views.ProfileViewSet, basename="profiles")
 router.register("posts", views.PostViewSet, basename="posts")
 
+posts_router = routers.NestedSimpleRouter(router, "posts", lookup="post")
+posts_router.register(
+    "comments",
+    views.CommentViewSet,
+    basename="post-comments"
+)
+
 urlpatterns = [
     path("", include(router.urls)),
+    path("", include(posts_router.urls)),
     path(
         "me/",
         views.CurrentUserProfileView.as_view(),
