@@ -85,3 +85,23 @@ class Post(models.Model):
 
     def __str__(self):
         return f"Post by {self.author} at {self.created_at}"
+
+
+class Like(models.Model):
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name="likes",
+    )
+    profile = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name="likes",
+    )
+    liked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ["post", "profile"]
+
+    def __str__(self):
+        return f"{self.profile} liked {self.post} at {self.liked_at}"
