@@ -2,6 +2,7 @@ from rest_framework import serializers
 from rest_framework.generics import get_object_or_404
 
 from social_network.models import (
+    Comment,
     HashTag,
     Profile,
     FollowingInteraction,
@@ -193,3 +194,20 @@ class LikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Like
         fields = ("id", "liked_by")
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    author_username = serializers.CharField(
+        source="author.username",
+        read_only=True
+    )
+    commented_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = (
+            "id",
+            "author_username",
+            "content",
+            "commented_at"
+        )
