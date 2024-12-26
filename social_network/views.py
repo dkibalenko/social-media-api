@@ -10,8 +10,9 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import serializers
 
-from social_network.models import FollowingInteraction, HashTag, Like, Post, Profile
+from social_network.models import Comment, FollowingInteraction, HashTag, Like, Post, Profile
 from social_network.serializers import (
+    CommentSerializer,
     PostImageSerializer,
     ProfileSerializer,
     ProfileListSerializer,
@@ -318,3 +319,18 @@ class PostViewSet(viewsets.ModelViewSet):
         liked_posts = self.get_queryset().filter(likes__profile=user_profile)
         serialzer = PostSerializer(liked_posts, many=True)
         return Response(serialzer.data)
+
+
+class CommentViewSet(viewsets.ModelViewSet):
+    serializer_class = CommentSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self) -> QuerySet:
+        queryset = Comment.objects.filter(
+            post_id=self.kwargs["post_pk"]
+        )
+        return queryset
+    
+    def perform_create(self, serializer: CommentSerializer) -> None:
+        post = get_object_or_404(Post, pk=self.kwargs.get("post_pk"))
+        serializer.save(author=self.request.user.profile, post=post)
