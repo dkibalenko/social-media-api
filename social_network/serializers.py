@@ -42,7 +42,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class ProfileListSerializer(serializers.ModelSerializer):
-    followed_by_me = serializers.SerializerMethodField()
+    followed_by_me = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Profile
@@ -53,23 +53,6 @@ class ProfileListSerializer(serializers.ModelSerializer):
             "full_name",
             "followed_by_me"
         )
-
-    def get_followed_by_me(self, obj):
-        """
-        Determines if the current user follows the given profile.
-
-        Args:
-            obj (Profile): The profile object to check against.
-
-        Returns:
-            bool: True if the current user follows the profile, False otherwise.
-        """
-
-        request = self.context.get("request", None)
-        if request is not None:
-            user_profile = get_object_or_404(Profile, user=request.user)
-            return obj.followers.filter(follower=user_profile).exists()
-        return False
 
 
 class FollowerSerializer(serializers.ModelSerializer):

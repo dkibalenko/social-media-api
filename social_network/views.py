@@ -1,4 +1,4 @@
-from django.db.models import Count
+from django.db.models import Count, Exists, OuterRef
 from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
 
@@ -41,6 +41,7 @@ class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self) -> QuerySet[Profile]:
         return (
             Profile.objects.filter(user=self.request.user)
+            .select_related("user")
             .prefetch_related("followees", "followers")
             .annotate(
                 followers_total=Count("followers"),
@@ -61,8 +62,6 @@ class ProfileViewSet(
     mixins.RetrieveModelMixin,
     viewsets.GenericViewSet
 ):
-    queryset = Profile.objects.all()
-    serializer_class = ProfileListSerializer
     permission_classes = (IsAuthenticated,)
 
     def get_serializer_class(self) -> serializers.BaseSerializer:
@@ -70,21 +69,40 @@ class ProfileViewSet(
             return ProfileListSerializer
         if self.action == "retrieve":
             return ProfileDetailSerializer
-        if self.action == "follow" or self.action == "unfollow":
+        if self.action in ["follow", "unfollow"]:
             return EmptySerializer
         return ProfileListSerializer
 
     def get_queryset(self) -> QuerySet[Profile]:
         """
-        Returns a filtered queryset of Profile objects
-        based on query parameters.
+        Returns a QuerySet of Profile objects annotated with the total number
+        of followers and followees each profile has, and also annotated with
+        a boolean indicating whether the current user follows the profile.
+
+        The QuerySet is filtered by the query parameters "username",
+        "first_name", and "last_name", if any of them are present.
+
+        :return: A QuerySet of Profile objects
         """
+        queryset = Profile.objects.select_related(
+            "user"
+            ).prefetch_related(
+                "followers",
+                "followees"
+                ).annotate(
+                    followed_by_me=Exists(
+                        FollowingInteraction.objects.filter(
+                            follower__user=self.request.user,
+                            followee=OuterRef("pk")
+                        )
+                    ),
+                    followers_total=Count("followers", distinct=True),
+                    followees_total=Count("followees", distinct=True)
+                )
 
         username = self.request.query_params.get("username")
         first_name = self.request.query_params.get("first_name")
         last_name = self.request.query_params.get("last_name")
-
-        queryset = super().get_queryset()
 
         if username:
             queryset = queryset.filter(username__icontains=username)
