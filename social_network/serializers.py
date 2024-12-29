@@ -97,12 +97,6 @@ class EmptySerializer(serializers.Serializer):
     pass
 
 
-class HashTagSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = HashTag
-        fields = ("id", "caption")
-
-
 class PostSerializer(serializers.ModelSerializer):
     author_username = serializers.CharField(
         source="author.username",
@@ -122,11 +116,6 @@ class PostSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False
     )
-    # hashtags_objects = HashTagSerializer(
-    #     source="hashtags",
-    #     many=True,
-    #     read_only=True
-    # )
     hashtags_objects = serializers.StringRelatedField(
         source="hashtags",
         many=True,
@@ -160,6 +149,18 @@ class PostSerializer(serializers.ModelSerializer):
             hashtag, created = HashTag.objects.get_or_create(caption=caption)
             post.hashtags.add(hashtag)
         return post
+
+
+class PostListSerializer(PostSerializer):
+    class Meta:
+        model = Post
+        fields = (
+            "id",
+            "title",
+            "hashtags_objects",
+            "author_username",
+            "created_at"
+        )
 
 
 class PostImageSerializer(serializers.ModelSerializer):
