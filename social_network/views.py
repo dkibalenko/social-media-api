@@ -28,6 +28,7 @@ from social_network.serializers import (
     FollowerSerializer,
     FolloweeSerializer,
     PostSerializer,
+    PostListSerializer
 )
 
 
@@ -200,8 +201,9 @@ class CurrentUserProfileFolloweesView(generics.ListAPIView):
 
 class PostViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
-    serializer_class = PostSerializer
-    queryset = Post.objects.all()
+    queryset = Post.objects.select_related(
+            "author"
+        ).prefetch_related("hashtags")
 
     def get_queryset(self) -> QuerySet[Post]:
         """
@@ -214,23 +216,28 @@ class PostViewSet(viewsets.ModelViewSet):
 
         The filtering is case-insensitive.
         """
-        queryset = super().get_queryset()
-        hashtag = self.request.query_params.get("hashtag")
+        queryset = self.queryset
+        hashtags = self.request.query_params.get("hashtags")
         author_username = self.request.query_params.get("author_username")
 
-        if hashtag:
-            queryset = queryset.filter(hashtags__caption__iexact=hashtag)
+        if hashtags:
+            hashtag_list = [
+                hashtag.strip().lower()
+                for hashtag
+                in hashtags.split(",")
+            ]
+            queryset = queryset.filter(hashtags__caption__in=hashtag_list)
 
         if author_username:
             queryset = queryset.filter(
                 author__username__icontains=author_username
             )
 
-        return queryset
+        return queryset.distinct()
 
     def get_serializer_class(self) -> serializers.BaseSerializer:
         if self.action == "list":
-            return PostSerializer
+            return PostListSerializer
         if self.action == "upload_image":
             return PostImageSerializer
         if self.action in ["like", "unlike"]:
@@ -288,7 +295,7 @@ class PostViewSet(viewsets.ModelViewSet):
             "followee",
             flat=True
         )
-        followees_posts = Post.objects.filter(author__in=followees_profiles)
+        followees_posts = self.queryset.filter(author__in=followees_profiles)
         serializer = PostSerializer(followees_posts, many=True)
         return Response(serializer.data)
 
@@ -353,7 +360,7 @@ class CommentViewSet(viewsets.ModelViewSet):
     def get_queryset(self) -> QuerySet:
         queryset = Comment.objects.filter(
             post_id=self.kwargs["post_pk"]
-        )
+        ).prefetch_related("author")
         return queryset
     
     def perform_create(self, serializer: CommentSerializer) -> None:
