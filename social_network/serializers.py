@@ -152,6 +152,10 @@ class PostSerializer(serializers.ModelSerializer):
 
 
 class PostListSerializer(PostSerializer):
+    liked_by_user = serializers.BooleanField(read_only=True)
+    likes_count = serializers.IntegerField(read_only=True)
+    comments_count = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = Post
         fields = (
@@ -159,7 +163,10 @@ class PostListSerializer(PostSerializer):
             "title",
             "hashtags_objects",
             "author_username",
-            "created_at"
+            "created_at",
+            "liked_by_user",
+            "likes_count",
+            "comments_count"
         )
 
 
@@ -195,3 +202,11 @@ class CommentSerializer(serializers.ModelSerializer):
             "content",
             "commented_at"
         )
+
+
+class PostDetailSerializer(PostSerializer):
+    likes = LikeSerializer(many=True, read_only=True)
+    comments = CommentSerializer(many=True, read_only=True)
+
+    class Meta(PostSerializer.Meta):
+        fields = PostSerializer.Meta.fields + ("likes", "comments")
