@@ -1,4 +1,4 @@
-from django.db.models import Count, Exists, OuterRef
+from django.db.models import Count, Exists, OuterRef, Subquery
 from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
 
@@ -20,6 +20,7 @@ from social_network.models import (
 )
 from social_network.serializers import (
     CommentSerializer,
+    PostDetailSerializer,
     PostImageSerializer,
     ProfileSerializer,
     ProfileListSerializer,
@@ -201,22 +202,43 @@ class CurrentUserProfileFolloweesView(generics.ListAPIView):
 
 class PostViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
-    queryset = Post.objects.select_related(
-            "author"
-        ).prefetch_related("hashtags")
 
     def get_queryset(self) -> QuerySet[Post]:
         """
-        Returns a filtered queryset of Post objects based on query parameters.
+        Returns a QuerySet of Post objects annotated with the total number of
+        likes and comments each post has, and also annotated with a boolean
+        indicating whether the current user has liked the post.
 
-        Query parameters that can be used to filter the queryset are:
+        The QuerySet is filtered by the query parameters "hashtags" and
+        "author_username", if any of them are present.
 
-        - `hashtag`: The caption of a hashtag to filter by.
-        - `author_username`: The username of the author to filter by.
-
-        The filtering is case-insensitive.
+        :return: A QuerySet of Post objects
         """
-        queryset = self.queryset
+        user_profile = self.request.user.profile
+        queryset = (
+            Post.objects.select_related("author")
+            .prefetch_related("hashtags", "likes__profile", "comments__author")
+            .annotate(
+                likes_count=Subquery(
+                    Like.objects.filter(post=OuterRef("pk"))
+                    .values("post")
+                    .annotate(count=Count("post"))
+                    .values("count"),
+                ),
+                comments_count=Subquery(
+                    Comment.objects.filter(post=OuterRef("pk"))
+                    .values("post")
+                    .annotate(count=Count("post"))
+                    .values("count"),
+                ),
+                liked_by_user=Exists(
+                    Like.objects.filter(
+                        post=OuterRef("pk"),
+                        profile=user_profile
+                    )
+                )
+            )
+        )
         hashtags = self.request.query_params.get("hashtags")
         author_username = self.request.query_params.get("author_username")
 
@@ -238,6 +260,8 @@ class PostViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self) -> serializers.BaseSerializer:
         if self.action == "list":
             return PostListSerializer
+        if self.action == "retrieve":
+            return PostDetailSerializer
         if self.action == "upload_image":
             return PostImageSerializer
         if self.action in ["like", "unlike"]:
@@ -280,7 +304,7 @@ class PostViewSet(viewsets.ModelViewSet):
         url_path="my-posts",
     )
     def my_posts(self, request) -> Response:
-        queryset = Post.objects.filter(author=request.user.profile)
+        queryset = self.get_queryset().filter(author=request.user.profile)
         serializer = PostSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -295,7 +319,7 @@ class PostViewSet(viewsets.ModelViewSet):
             "followee",
             flat=True
         )
-        followees_posts = self.queryset.filter(author__in=followees_profiles)
+        followees_posts = self.get_queryset().filter(author__in=followees_profiles)
         serializer = PostSerializer(followees_posts, many=True)
         return Response(serializer.data)
 
