@@ -80,22 +80,27 @@ class ProfileViewSet(
 
     def get_queryset(self) -> QuerySet[Profile]:
         """
-        Returns a QuerySet of Profile objects annotated with the total number
-        of followers and followees each profile has, and also annotated with
-        a boolean indicating whether the current user follows the profile.
+        Returns a QuerySet of Profile objects, annotated with the total number
+        of followers and followees each profile has.
+        If the user is authenticated, the QuerySet is further annotated with
+        a boolean indicating whether the current user follows each profile.
 
-        The QuerySet is filtered by the query parameters "username",
+        The QuerySet can be filtered by the query parameters "username",
         "first_name", and "last_name", if any of them are present.
 
-        :return: A QuerySet of Profile objects
+        :return: A distinct QuerySet of Profile objects
         """
-        if self.request.user.is_authenticated:
-            queryset = Profile.objects.select_related(
+        queryset = Profile.objects.select_related(
                 "user"
                 ).prefetch_related(
-                    "followers",
-                    "followees"
+                    "followers__follower",
+                    "followees__followee"
                     ).annotate(
+                        followers_total=Count("followers", distinct=True),
+                        followees_total=Count("followees", distinct=True)
+                    )
+        if self.request.user.is_authenticated:
+            queryset = queryset.annotate(
                         followed_by_me=Exists(
                             FollowingInteraction.objects.filter(
                                 follower__user=self.request.user,
@@ -105,17 +110,7 @@ class ProfileViewSet(
                         followers_total=Count("followers", distinct=True),
                         followees_total=Count("followees", distinct=True)
                     )
-        else:
-            queryset = Profile.objects.select_related(
-                "user"
-                ).prefetch_related(
-                    "followers",
-                    "followees"
-                    ).annotate(
-                        followers_total=Count("followers", distinct=True),
-                        followees_total=Count("followees", distinct=True)
-                    )
-
+    
         username = self.request.query_params.get("username")
         first_name = self.request.query_params.get("first_name")
         last_name = self.request.query_params.get("last_name")
