@@ -152,7 +152,7 @@ class PostSerializer(serializers.ModelSerializer):
 
 
 class PostListSerializer(PostSerializer):
-    liked_by_user = serializers.BooleanField(read_only=True)
+    liked_by_user = serializers.SerializerMethodField()
     likes_count = serializers.IntegerField(read_only=True)
     comments_count = serializers.IntegerField(read_only=True)
 
@@ -168,6 +168,12 @@ class PostListSerializer(PostSerializer):
             "likes_count",
             "comments_count"
         )
+
+    def get_liked_by_user(self, obj: Post) -> bool:
+        request = self.context.get("request", None)
+        if request is not None and request.user.is_authenticated:
+            return obj.liked_by_user
+        return False
 
 
 class PostImageSerializer(serializers.ModelSerializer):
