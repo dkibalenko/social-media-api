@@ -38,7 +38,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class ProfileListSerializer(ProfileSerializer):
-    followed_by_me = serializers.BooleanField(read_only=True)
+    followed_by_me = serializers.SerializerMethodField()
     followers_total = serializers.IntegerField(read_only=True)
     followees_total = serializers.IntegerField(read_only=True)
 
@@ -53,6 +53,12 @@ class ProfileListSerializer(ProfileSerializer):
             "followers_total",
             "followees_total",
         )
+
+    def get_followed_by_me(self, obj: Profile) -> bool:
+        request = self.context.get("request", None)
+        if request is not None and request.user.is_authenticated:
+            return obj.followed_by_me
+        return False
 
 
 class FollowerSerializer(serializers.ModelSerializer):
