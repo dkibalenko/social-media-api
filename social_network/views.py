@@ -32,9 +32,10 @@ from social_network.serializers import (
     PostListSerializer
 )
 
+from social_network.permissions import IsOwnerOrReadOnly
+
 
 class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = (IsAuthenticated,)
     serializer_class = ProfileSerializer
 
     def get_object(self) -> Profile:
@@ -64,7 +65,6 @@ class ProfileViewSet(
     mixins.RetrieveModelMixin,
     viewsets.GenericViewSet
 ):
-    permission_classes = (IsAuthenticated,)
 
     def get_serializer_class(self) -> serializers.BaseSerializer:
         if self.action == "list":
@@ -184,7 +184,6 @@ class ProfileViewSet(
 
 class CurrentUserProfileFollowersView(generics.ListAPIView):
     serializer_class = FollowerSerializer
-    permission_classes = (IsAuthenticated,)
 
     def get_queryset(self) -> QuerySet[FollowingInteraction]:
         user = self.request.user
@@ -193,7 +192,6 @@ class CurrentUserProfileFollowersView(generics.ListAPIView):
 
 class CurrentUserProfileFolloweesView(generics.ListAPIView):
     serializer_class = FolloweeSerializer
-    permission_classes = (IsAuthenticated,)
 
     def get_queryset(self) -> QuerySet[FollowingInteraction]:
         user = self.request.user
@@ -201,7 +199,7 @@ class CurrentUserProfileFolloweesView(generics.ListAPIView):
 
 
 class PostViewSet(viewsets.ModelViewSet):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsOwnerOrReadOnly,)
 
     def get_queryset(self) -> QuerySet[Post]:
         """
@@ -214,31 +212,60 @@ class PostViewSet(viewsets.ModelViewSet):
 
         :return: A QuerySet of Post objects
         """
-        user_profile = self.request.user.profile
-        queryset = (
-            Post.objects.select_related("author")
-            .prefetch_related("hashtags", "likes__profile", "comments__author")
-            .annotate(
-                likes_count=Subquery(
-                    Like.objects.filter(post=OuterRef("pk"))
-                    .values("post")
-                    .annotate(count=Count("post"))
-                    .values("count"),
-                ),
-                comments_count=Subquery(
-                    Comment.objects.filter(post=OuterRef("pk"))
-                    .values("post")
-                    .annotate(count=Count("post"))
-                    .values("count"),
-                ),
-                liked_by_user=Exists(
-                    Like.objects.filter(
-                        post=OuterRef("pk"),
-                        profile=user_profile
+        if self.request.user.is_authenticated:
+            user_profile = self.request.user.profile
+            queryset = (
+                Post.objects.select_related("author")
+                .prefetch_related(
+                    "hashtags",
+                    "likes__profile",
+                    "comments__author"
+                )
+                .annotate(
+                    likes_count=Subquery(
+                        Like.objects.filter(post=OuterRef("pk"))
+                        .values("post")
+                        .annotate(count=Count("post"))
+                        .values("count"),
+                    ),
+                    comments_count=Subquery(
+                        Comment.objects.filter(post=OuterRef("pk"))
+                        .values("post")
+                        .annotate(count=Count("post"))
+                        .values("count"),
+                    ),
+                    liked_by_user=Exists(
+                        Like.objects.filter(
+                            post=OuterRef("pk"),
+                            profile=user_profile
+                        )
                     )
                 )
             )
-        )
+        else:
+            queryset = (
+                Post.objects.select_related("author")
+                .prefetch_related(
+                    "hashtags",
+                    "likes__profile",
+                    "comments__author"
+                )
+                .annotate(
+                    likes_count=Subquery(
+                        Like.objects.filter(post=OuterRef("pk"))
+                        .values("post")
+                        .annotate(count=Count("post"))
+                        .values("count"),
+                    ),
+                    comments_count=Subquery(
+                        Comment.objects.filter(post=OuterRef("pk"))
+                        .values("post")
+                        .annotate(count=Count("post"))
+                        .values("count"),
+                    ),
+                )
+            )
+
         hashtags = self.request.query_params.get("hashtags")
         author_username = self.request.query_params.get("author_username")
 
@@ -284,13 +311,28 @@ class PostViewSet(viewsets.ModelViewSet):
             hashtag, created = HashTag.objects.get_or_create(caption=caption)
             post.hashtags.add(hashtag)
 
+    def create(self, request, *args, **kwargs) -> Response:
+        """
+        Creates a new post instance with the currently authenticated user
+        as the author.
+        The method ensures that only authenticated users can create posts by
+        overriding the permission_classes attribute of the ViewSet to include
+        only the IsAuthenticated permission.
+        """
+        self.permission_classes = [IsAuthenticated]
+        self.check_permissions(request)
+        return super().create(request, *args, **kwargs)
+
     @action(
         detail=True,
         methods=["post"],
         url_path="upload-image",
+        permission_classes=[IsAuthenticated, IsOwnerOrReadOnly],
     )
     def upload_image(self, request, pk: int=None) -> Response:
         post = get_object_or_404(Post, pk=pk)
+        # with object-level permission, we need to check the permission manually
+        self.check_object_permissions(request, post)
         post.image = request.data["image"]
         post.save()
         return Response(
@@ -302,6 +344,7 @@ class PostViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=["get"],
         url_path="my-posts",
+        permission_classes=[IsAuthenticated],
     )
     def my_posts(self, request) -> Response:
         queryset = self.get_queryset().filter(author=request.user.profile)
@@ -312,6 +355,7 @@ class PostViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=["get"],
         url_path="followees-posts",
+        permission_classes=[IsAuthenticated],
     )
     def followees_posts(self, request) -> Response:
         user_profile = request.user.profile
@@ -327,6 +371,7 @@ class PostViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=["post"],
         url_path="like",
+        permission_classes=[IsAuthenticated]
     )
     def like(self, request, pk: int) -> Response:
         post = get_object_or_404(Post, pk=pk)
@@ -348,6 +393,7 @@ class PostViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=["post"],
         url_path="unlike",
+        permission_classes=[IsAuthenticated]
     )
     def unlike(self, request, pk: int) -> Response:
         post = get_object_or_404(Post, pk=pk)
@@ -369,6 +415,7 @@ class PostViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=["get"],
         url_path="liked",
+        permission_classes=[IsAuthenticated],
     )
     def liked(self, request) -> Response:
         user_profile = request.user.profile
@@ -379,7 +426,7 @@ class PostViewSet(viewsets.ModelViewSet):
 
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsOwnerOrReadOnly,)
 
     def get_queryset(self) -> QuerySet:
         queryset = Comment.objects.filter(
@@ -390,3 +437,12 @@ class CommentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer: CommentSerializer) -> None:
         post = get_object_or_404(Post, pk=self.kwargs.get("post_pk"))
         serializer.save(author=self.request.user.profile, post=post)
+
+    def create(self, request, *args, **kwargs) -> Response:
+        """
+        Creates a new comment under a post. The comment is created with
+        the currently authenticated user as the author.
+        """
+        self.permission_classes = [IsAuthenticated]
+        self.check_permissions(request)
+        return super().create(request, *args, **kwargs)
