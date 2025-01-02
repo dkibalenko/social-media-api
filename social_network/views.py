@@ -212,66 +212,47 @@ class PostViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self) -> QuerySet[Post]:
         """
-        Returns a QuerySet of Post objects annotated with the total number of
-        likes and comments each post has, and also annotated with a boolean
-        indicating whether the current user has liked the post.
+        Returns a QuerySet of Post objects, annotated with the total number
+        of likes and comments each post has. If the user is authenticated,
+        the QuerySet is further annotated with a boolean indicating whether
+        the current user has liked each post.
 
-        The QuerySet is filtered by the query parameters "hashtags" and
+        The QuerySet can be filtered by the query parameters "hashtags" and
         "author_username", if any of them are present.
 
-        :return: A QuerySet of Post objects
+        :return: A distinct QuerySet of Post objects
         """
+        queryset = (
+            Post.objects.select_related("author")
+            .prefetch_related(
+                "hashtags",
+                "likes__profile",
+                "comments__author"
+            )
+            .annotate(
+                likes_count=Subquery(
+                    Like.objects.filter(post=OuterRef("pk"))
+                    .values("post")
+                    .annotate(count=Count("post"))
+                    .values("count"),
+                ),
+                comments_count=Subquery(
+                    Comment.objects.filter(post=OuterRef("pk"))
+                    .values("post")
+                    .annotate(count=Count("post"))
+                    .values("count"),
+                ),
+            )
+        )
+
         if self.request.user.is_authenticated:
             user_profile = self.request.user.profile
-            queryset = (
-                Post.objects.select_related("author")
-                .prefetch_related(
-                    "hashtags",
-                    "likes__profile",
-                    "comments__author"
-                )
-                .annotate(
-                    likes_count=Subquery(
-                        Like.objects.filter(post=OuterRef("pk"))
-                        .values("post")
-                        .annotate(count=Count("post"))
-                        .values("count"),
-                    ),
-                    comments_count=Subquery(
-                        Comment.objects.filter(post=OuterRef("pk"))
-                        .values("post")
-                        .annotate(count=Count("post"))
-                        .values("count"),
-                    ),
-                    liked_by_user=Exists(
-                        Like.objects.filter(
-                            post=OuterRef("pk"),
-                            profile=user_profile
-                        )
+            queryset = queryset.annotate(
+                liked_by_user=Exists(
+                    Like.objects.filter(
+                        post=OuterRef("pk"),
+                        profile=user_profile
                     )
-                )
-            )
-        else:
-            queryset = (
-                Post.objects.select_related("author")
-                .prefetch_related(
-                    "hashtags",
-                    "likes__profile",
-                    "comments__author"
-                )
-                .annotate(
-                    likes_count=Subquery(
-                        Like.objects.filter(post=OuterRef("pk"))
-                        .values("post")
-                        .annotate(count=Count("post"))
-                        .values("count"),
-                    ),
-                    comments_count=Subquery(
-                        Comment.objects.filter(post=OuterRef("pk"))
-                        .values("post")
-                        .annotate(count=Count("post"))
-                        .values("count"),
-                    ),
                 )
             )
 
