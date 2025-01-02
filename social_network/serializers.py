@@ -13,8 +13,6 @@ from social_network.models import (
 
 class ProfileSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source="user.email", read_only=True)
-    followers_total = serializers.IntegerField(read_only=True)
-    followees_total = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Profile
@@ -28,8 +26,6 @@ class ProfileSerializer(serializers.ModelSerializer):
             "birth_date",
             "phone_number",
             "bio",
-            "followers_total",
-            "followees_total",
         )
 
     def update(self, instance, validated_data):
@@ -41,8 +37,10 @@ class ProfileSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
-class ProfileListSerializer(serializers.ModelSerializer):
+class ProfileListSerializer(ProfileSerializer):
     followed_by_me = serializers.BooleanField(read_only=True)
+    followers_total = serializers.IntegerField(read_only=True)
+    followees_total = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Profile
@@ -51,7 +49,9 @@ class ProfileListSerializer(serializers.ModelSerializer):
             "profile_image",
             "username",
             "full_name",
-            "followed_by_me"
+            "followed_by_me",
+            "followers_total",
+            "followees_total",
         )
 
 
