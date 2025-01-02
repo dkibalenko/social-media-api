@@ -63,8 +63,11 @@ class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
 class ProfileViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
     viewsets.GenericViewSet
 ):
+    permission_classes = (IsOwnerOrReadOnly,)
 
     def get_serializer_class(self) -> serializers.BaseSerializer:
         if self.action == "list":
@@ -86,21 +89,32 @@ class ProfileViewSet(
 
         :return: A QuerySet of Profile objects
         """
-        queryset = Profile.objects.select_related(
-            "user"
-            ).prefetch_related(
-                "followers",
-                "followees"
-                ).annotate(
-                    followed_by_me=Exists(
-                        FollowingInteraction.objects.filter(
-                            follower__user=self.request.user,
-                            followee=OuterRef("pk")
-                        )
-                    ),
-                    followers_total=Count("followers", distinct=True),
-                    followees_total=Count("followees", distinct=True)
-                )
+        if self.request.user.is_authenticated:
+            queryset = Profile.objects.select_related(
+                "user"
+                ).prefetch_related(
+                    "followers",
+                    "followees"
+                    ).annotate(
+                        followed_by_me=Exists(
+                            FollowingInteraction.objects.filter(
+                                follower__user=self.request.user,
+                                followee=OuterRef("pk")
+                            )
+                        ),
+                        followers_total=Count("followers", distinct=True),
+                        followees_total=Count("followees", distinct=True)
+                    )
+        else:
+            queryset = Profile.objects.select_related(
+                "user"
+                ).prefetch_related(
+                    "followers",
+                    "followees"
+                    ).annotate(
+                        followers_total=Count("followers", distinct=True),
+                        followees_total=Count("followees", distinct=True)
+                    )
 
         username = self.request.query_params.get("username")
         first_name = self.request.query_params.get("first_name")
