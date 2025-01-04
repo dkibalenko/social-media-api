@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "debug_toolbar",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -141,13 +142,27 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
-    ]
+    ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 SIMPLE_JWT = {
-	"ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
-	"REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-	"ROTATE_REFRESH_TOKENS": False
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": False,
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Social Network API",
+    "DESCRIPTION": "The Social Network API application that allows users to create posts, like posts, and follow other users.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
+        "defaultModelRendering": "model",
+        "defaultModelsExpandDepth": 2,
+        "defaultModelExpandDepth": 2,
+    },
 }
 
 INTERNAL_IPS = [
