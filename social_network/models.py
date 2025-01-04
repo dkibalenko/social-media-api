@@ -76,6 +76,7 @@ class Post(models.Model):
         related_name="posts",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    sheduled_at = models.DateTimeField(blank=True, null=True, default=None)
 
     class Meta:
         ordering = ["-created_at"]
