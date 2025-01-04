@@ -135,20 +135,22 @@ class PostSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True
     )
+    sheduled_at = serializers.DateTimeField(required=False, write_only=True)
 
     class Meta:
         model = Post
         fields = (
             "id",
+            "author_username",
+            "author_full_name",
             "title",
             "hashtags",
             "hashtags_objects",
             "content",
             "image",
-            "author_username",
-            "author_full_name",
             "author_image",
-            "created_at"
+            "created_at",
+            "sheduled_at",
         )
 
     def create(self, validated_data) -> Post:
@@ -180,7 +182,8 @@ class PostListSerializer(PostSerializer):
             "created_at",
             "liked_by_user",
             "likes_count",
-            "comments_count"
+            "comments_count",
+            "sheduled_at",
         )
 
     def get_liked_by_user(self, obj: Post) -> bool:
