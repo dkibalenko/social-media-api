@@ -69,7 +69,6 @@ class Post(models.Model):
         to=HashTag,
         related_name="posts",
         blank=True,
-        null=True,
     )
     author = models.ForeignKey(
         Profile,
