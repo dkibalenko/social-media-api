@@ -10,6 +10,9 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import serializers
 
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
+
 from social_network.models import (
     Comment,
     FollowingInteraction,
@@ -58,7 +61,101 @@ class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
         response = super().destroy(request, *args, **kwargs)
         user.delete()
         return response
-
+    
+    @extend_schema(
+        summary="Retrieve the current user's profile",
+        description="Retrieve the profile of the currently authenticated user.",
+        responses={
+            200: OpenApiResponse(
+                description="The profile of the currently authenticated user.",
+                response=ProfileSerializer,
+                examples=[
+                    OpenApiExample(
+                        name="Example Response",
+                        value={
+                            "id": 1,
+                            "username": "johnny",
+                            "first_name": "John",
+                            "last_name": "Doe",
+                            "profile_image": "http://example/john-doe.jpg",
+                            "user_email": "WbE0G@example.com",
+                            "birth_date": "1990-01-01",
+                            "phone_number": "+1234567890",
+                            "bio": "Hello, I am John Doe!",
+                        },
+                        response_only=True
+                    )
+                ]
+            ),
+            401: OpenApiResponse(
+                description="Authentication credentials were not provided."
+            ),
+        }
+    )
+    def get(self, request, *args, **kwargs) -> Response:
+        return super().retrieve(request, *args, **kwargs)
+    
+    @extend_schema(
+        summary="Update the current user's profile",
+        description="Update the profile of the currently authenticated user.",
+        request=ProfileSerializer,
+        examples=[
+            OpenApiExample(
+                name="Example Request",
+                value={
+                    "username": "johnny",
+                    "first_name": "John",
+                    "last_name": "Doe",
+                    "profile_image": "http://example/john-doe.jpg",
+                    "user_email": "WbE0G@example.com",
+                    "birth_date": "1990-01-01",
+                    "phone_number": "+1234567890",
+                    "bio": "Hello, I am John Doe!",
+                },
+                request_only=True
+            )
+        ],
+        responses={
+            200: OpenApiResponse(
+                response=ProfileSerializer,
+                description="Profile updated successfully.",
+                examples=[
+                    OpenApiExample(
+                        name="Example Response",
+                        value={
+                            "id": 1,
+                            "username": "johnny",
+                            "first_name": "John",
+                            "last_name": "Doe",
+                            "profile_image": "http://example/john-doe.jpg",
+                            "user_email": "WbE0G@example.com",
+                            "birth_date": "1990-01-01",
+                            "phone_number": "+1234567890",
+                            "bio": "Hello, I am John Doe!",
+                        },
+                        response_only=True
+                    )
+                ]
+            ),
+            400: OpenApiResponse(description="Bad request."),
+        }
+    )
+    def put(self, request, *args, **kwargs) -> Response:
+        return super().update(request, *args, **kwargs)
+    
+    @extend_schema(
+        summary="Delete the current user's profile",
+        description="Delete the profile of the currently authenticated user.",
+        responses={
+            204: OpenApiResponse(description="Profile deleted successfully."),
+            401: OpenApiResponse(
+                description="Authentication credentials were not provided."
+            ),
+        }
+    )
+    def delete(self, request, *args, **kwargs) -> Response:
+        return super().destroy(request, *args, **kwargs)
+    
 
 class ProfileViewSet(
     mixins.ListModelMixin,
@@ -67,6 +164,11 @@ class ProfileViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet
 ):
+    """
+    A view that allows users to retrieve a list of all profiles and retrieve,
+    update or delete their own profiles.
+    The view is restricted to authenticated users only.
+    """
     permission_classes = (IsOwnerOrReadOnly,)
 
     def get_serializer_class(self) -> serializers.BaseSerializer:
@@ -125,6 +227,28 @@ class ProfileViewSet(
             queryset = queryset.filter(last_name__icontains=last_name)
 
         return queryset.distinct()
+    
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="username",
+                type=OpenApiTypes.STR,
+                description="Username of the profile to filter by, example: ?username=johnny",
+            ),
+            OpenApiParameter(
+                name="first_name",
+                type=OpenApiTypes.STR,
+                description="First name of the profile to filter by, example: ?first_name=john",
+            ),
+            OpenApiParameter(
+                name="last_name",
+                type=OpenApiTypes.STR,
+                description="Last name of the profile to filter by, example: ?last_name=doe",
+            ),
+        ],
+    )
+    def list(self, request, *args, **kwargs) -> Response:
+        return super().list(request, *args, **kwargs)
 
     def get_current_user_profile(self) -> Profile:
         return get_object_or_404(Profile, user=self.request.user)
@@ -192,6 +316,10 @@ class ProfileViewSet(
 
 
 class CurrentUserProfileFollowersView(generics.ListAPIView):
+    """
+    A view that allows the current user to retrieve a list of profiles that
+    follow them. The view is restricted to authenticated users only.
+    """
     serializer_class = FollowerSerializer
 
     def get_queryset(self) -> QuerySet[FollowingInteraction]:
@@ -200,6 +328,10 @@ class CurrentUserProfileFollowersView(generics.ListAPIView):
 
 
 class CurrentUserProfileFolloweesView(generics.ListAPIView):
+    """
+    A view that allows the current user to retrieve a list of profiles they
+    follow. The view is restricted to authenticated users only.
+    """
     serializer_class = FolloweeSerializer
 
     def get_queryset(self) -> QuerySet[FollowingInteraction]:
@@ -208,6 +340,10 @@ class CurrentUserProfileFolloweesView(generics.ListAPIView):
 
 
 class PostViewSet(viewsets.ModelViewSet):
+    """
+    A view that allows the current user to retrieve, create, update, and
+    delete posts. The view is restricted to authenticated users only.
+    """
     permission_classes = (IsOwnerOrReadOnly,)
 
     def get_queryset(self) -> QuerySet[Post]:
@@ -273,6 +409,24 @@ class PostViewSet(viewsets.ModelViewSet):
             )
 
         return queryset.distinct()
+    
+    @extend_schema(
+            parameters=[
+                OpenApiParameter(
+                    name="hashtags",
+                    type=OpenApiTypes.STR,
+                    description="Comma-separated list of hashtags to filter by, example: ?hashtags=top,news",
+                ),
+                OpenApiParameter(
+                    name="author_username",
+                    type=OpenApiTypes.STR,
+                    description="Username of the author to filter by, example: ?author_username=johnny",
+                ),
+            ]
+
+    )
+    def list(self, request, *args, **kwargs) -> Response:
+        return super().list(request, *args, **kwargs)
 
     def get_serializer_class(self) -> serializers.BaseSerializer:
         if self.action == "list":
@@ -413,7 +567,22 @@ class PostViewSet(viewsets.ModelViewSet):
         serialzer = PostSerializer(liked_posts, many=True)
         return Response(serialzer.data)
 
-
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            name="post_pk",
+            type=OpenApiTypes.INT,
+            description="Prymary key of the post.",
+            location=OpenApiParameter.PATH,
+        ),
+        OpenApiParameter(
+            name="id",
+            type=OpenApiTypes.INT,
+            description="Primary key of the comment.",
+            location=OpenApiParameter.PATH
+        ),
+    ],
+)
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
     permission_classes = (IsOwnerOrReadOnly,)

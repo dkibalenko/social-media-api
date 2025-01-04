@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from rest_framework.generics import get_object_or_404
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
+
 from social_network.models import (
     Comment,
     HashTag,
@@ -41,6 +44,7 @@ class ProfileListSerializer(ProfileSerializer):
     followed_by_me = serializers.SerializerMethodField()
     followers_total = serializers.IntegerField(read_only=True)
     followees_total = serializers.IntegerField(read_only=True)
+    full_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
@@ -59,6 +63,10 @@ class ProfileListSerializer(ProfileSerializer):
         if request is not None and request.user.is_authenticated:
             return obj.followed_by_me
         return False
+    
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_full_name(self, obj: Profile) -> str:
+        return obj.full_name
 
 
 class FollowerSerializer(serializers.ModelSerializer):
@@ -166,9 +174,9 @@ class PostListSerializer(PostSerializer):
         model = Post
         fields = (
             "id",
+            "author_username",
             "title",
             "hashtags_objects",
-            "author_username",
             "created_at",
             "liked_by_user",
             "likes_count",
