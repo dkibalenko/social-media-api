@@ -135,7 +135,7 @@ class PostSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True
     )
-    sheduled_at = serializers.DateTimeField(required=False, write_only=True)
+    scheduled_at = serializers.DateTimeField(required=False, write_only=True)
 
     class Meta:
         model = Post
@@ -150,7 +150,7 @@ class PostSerializer(serializers.ModelSerializer):
             "image",
             "author_image",
             "created_at",
-            "sheduled_at",
+            "scheduled_at",
         )
 
     def create(self, validated_data) -> Post:
@@ -183,7 +183,7 @@ class PostListSerializer(PostSerializer):
             "liked_by_user",
             "likes_count",
             "comments_count",
-            "sheduled_at",
+            "scheduled_at",
         )
 
     def get_liked_by_user(self, obj: Post) -> bool:
