@@ -1,3 +1,5 @@
+import zoneinfo
+
 from django.db.models import Count, Exists, OuterRef, Subquery
 from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
@@ -10,7 +12,12 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import serializers
 
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiExample
+from drf_spectacular.utils import (
+    extend_schema,
+    OpenApiParameter,
+    OpenApiResponse,
+    OpenApiExample,
+)
 from drf_spectacular.types import OpenApiTypes
 
 from social_network.models import (
@@ -19,7 +26,7 @@ from social_network.models import (
     HashTag,
     Like,
     Post,
-    Profile
+    Profile,
 )
 from social_network.serializers import (
     CommentSerializer,
@@ -32,10 +39,11 @@ from social_network.serializers import (
     FollowerSerializer,
     FolloweeSerializer,
     PostSerializer,
-    PostListSerializer
+    PostListSerializer,
 )
 
 from social_network.permissions import IsOwnerOrReadOnly
+from social_network.tasks import create_scheduled_post
 
 
 class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
@@ -61,10 +69,10 @@ class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
         response = super().destroy(request, *args, **kwargs)
         user.delete()
         return response
-    
+
     @extend_schema(
         summary="Retrieve the current user's profile",
-        description="Retrieve the profile of the currently authenticated user.",
+        description="Retrieve the profile of currently authenticated user.",
         responses={
             200: OpenApiResponse(
                 description="The profile of the currently authenticated user.",
@@ -83,18 +91,18 @@ class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
                             "phone_number": "+1234567890",
                             "bio": "Hello, I am John Doe!",
                         },
-                        response_only=True
+                        response_only=True,
                     )
-                ]
+                ],
             ),
             401: OpenApiResponse(
                 description="Authentication credentials were not provided."
             ),
-        }
+        },
     )
     def get(self, request, *args, **kwargs) -> Response:
         return super().retrieve(request, *args, **kwargs)
-    
+
     @extend_schema(
         summary="Update the current user's profile",
         description="Update the profile of the currently authenticated user.",
@@ -112,7 +120,7 @@ class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
                     "phone_number": "+1234567890",
                     "bio": "Hello, I am John Doe!",
                 },
-                request_only=True
+                request_only=True,
             )
         ],
         responses={
@@ -133,16 +141,16 @@ class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
                             "phone_number": "+1234567890",
                             "bio": "Hello, I am John Doe!",
                         },
-                        response_only=True
+                        response_only=True,
                     )
-                ]
+                ],
             ),
             400: OpenApiResponse(description="Bad request."),
-        }
+        },
     )
     def put(self, request, *args, **kwargs) -> Response:
         return super().update(request, *args, **kwargs)
-    
+
     @extend_schema(
         summary="Delete the current user's profile",
         description="Delete the profile of the currently authenticated user.",
@@ -151,24 +159,25 @@ class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
             401: OpenApiResponse(
                 description="Authentication credentials were not provided."
             ),
-        }
+        },
     )
     def delete(self, request, *args, **kwargs) -> Response:
         return super().destroy(request, *args, **kwargs)
-    
+
 
 class ProfileViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
     mixins.DestroyModelMixin,
-    viewsets.GenericViewSet
+    viewsets.GenericViewSet,
 ):
     """
     A view that allows users to retrieve a list of all profiles and retrieve,
     update or delete their own profiles.
     The view is restricted to authenticated users only.
     """
+
     permission_classes = (IsOwnerOrReadOnly,)
 
     def get_serializer_class(self) -> serializers.BaseSerializer:
@@ -192,27 +201,26 @@ class ProfileViewSet(
 
         :return: A distinct QuerySet of Profile objects
         """
-        queryset = Profile.objects.select_related(
-                "user"
-                ).prefetch_related(
-                    "followers__follower",
-                    "followees__followee"
-                    ).annotate(
-                        followers_total=Count("followers", distinct=True),
-                        followees_total=Count("followees", distinct=True)
-                    )
+        queryset = (
+            Profile.objects.select_related("user")
+            .prefetch_related("followers__follower", "followees__followee")
+            .annotate(
+                followers_total=Count("followers", distinct=True),
+                followees_total=Count("followees", distinct=True),
+            )
+        )
         if self.request.user.is_authenticated:
             queryset = queryset.annotate(
-                        followed_by_me=Exists(
-                            FollowingInteraction.objects.filter(
-                                follower__user=self.request.user,
-                                followee=OuterRef("pk")
-                            )
-                        ),
-                        followers_total=Count("followers", distinct=True),
-                        followees_total=Count("followees", distinct=True)
+                followed_by_me=Exists(
+                    FollowingInteraction.objects.filter(
+                        follower__user=self.request.user,
+                        followee=OuterRef("pk")
                     )
-    
+                ),
+                followers_total=Count("followers", distinct=True),
+                followees_total=Count("followees", distinct=True),
+            )
+
         username = self.request.query_params.get("username")
         first_name = self.request.query_params.get("first_name")
         last_name = self.request.query_params.get("last_name")
@@ -227,23 +235,26 @@ class ProfileViewSet(
             queryset = queryset.filter(last_name__icontains=last_name)
 
         return queryset.distinct()
-    
+
     @extend_schema(
         parameters=[
             OpenApiParameter(
                 name="username",
                 type=OpenApiTypes.STR,
-                description="Username of the profile to filter by, example: ?username=johnny",
+                description="Username of the profile to filter by, \
+                    example: ?username=johnny",
             ),
             OpenApiParameter(
                 name="first_name",
                 type=OpenApiTypes.STR,
-                description="First name of the profile to filter by, example: ?first_name=john",
+                description="First name of the profile to filter by, \
+                    example: ?first_name=john",
             ),
             OpenApiParameter(
                 name="last_name",
                 type=OpenApiTypes.STR,
-                description="Last name of the profile to filter by, example: ?last_name=doe",
+                description="Last name of the profile to filter by, \
+                    example: ?last_name=doe",
             ),
         ],
     )
@@ -257,7 +268,7 @@ class ProfileViewSet(
         detail=True,
         methods=["post"],
         url_path="follow",
-        permission_classes=[IsAuthenticated]
+        permission_classes=[IsAuthenticated],
     )
     def follow(self, request, pk: int) -> Response:
         follower = self.get_current_user_profile()
@@ -282,14 +293,14 @@ class ProfileViewSet(
 
         return Response(
             {"detail": "You are now following this user."},
-            status=status.HTTP_201_CREATED
+            status=status.HTTP_201_CREATED,
         )
 
     @action(
         detail=True,
         methods=["post"],
         url_path="unfollow",
-        permission_classes=[IsAuthenticated]
+        permission_classes=[IsAuthenticated],
     )
     def unfollow(self, request, pk: int) -> Response:
         follower = self.get_current_user_profile()
@@ -311,7 +322,7 @@ class ProfileViewSet(
 
         return Response(
             {"detail": "You are no longer following this user."},
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
 
 
@@ -320,6 +331,7 @@ class CurrentUserProfileFollowersView(generics.ListAPIView):
     A view that allows the current user to retrieve a list of profiles that
     follow them. The view is restricted to authenticated users only.
     """
+
     serializer_class = FollowerSerializer
 
     def get_queryset(self) -> QuerySet[FollowingInteraction]:
@@ -332,6 +344,7 @@ class CurrentUserProfileFolloweesView(generics.ListAPIView):
     A view that allows the current user to retrieve a list of profiles they
     follow. The view is restricted to authenticated users only.
     """
+
     serializer_class = FolloweeSerializer
 
     def get_queryset(self) -> QuerySet[FollowingInteraction]:
@@ -344,6 +357,7 @@ class PostViewSet(viewsets.ModelViewSet):
     A view that allows the current user to retrieve, create, update, and
     delete posts. The view is restricted to authenticated users only.
     """
+
     permission_classes = (IsOwnerOrReadOnly,)
 
     def get_queryset(self) -> QuerySet[Post]:
@@ -360,11 +374,7 @@ class PostViewSet(viewsets.ModelViewSet):
         """
         queryset = (
             Post.objects.select_related("author")
-            .prefetch_related(
-                "hashtags",
-                "likes__profile",
-                "comments__author"
-            )
+            .prefetch_related("hashtags", "likes__profile", "comments__author")
             .annotate(
                 likes_count=Subquery(
                     Like.objects.filter(post=OuterRef("pk"))
@@ -409,21 +419,22 @@ class PostViewSet(viewsets.ModelViewSet):
             )
 
         return queryset.distinct()
-    
-    @extend_schema(
-            parameters=[
-                OpenApiParameter(
-                    name="hashtags",
-                    type=OpenApiTypes.STR,
-                    description="Comma-separated list of hashtags to filter by, example: ?hashtags=top,news",
-                ),
-                OpenApiParameter(
-                    name="author_username",
-                    type=OpenApiTypes.STR,
-                    description="Username of the author to filter by, example: ?author_username=johnny",
-                ),
-            ]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="hashtags",
+                type=OpenApiTypes.STR,
+                description="Comma-separated list of hashtags to filter by, \
+                    example: ?hashtags=top,news",
+            ),
+            OpenApiParameter(
+                name="author_username",
+                type=OpenApiTypes.STR,
+                description="Username of the author to filter by, \
+                    example: ?author_username=johnny",
+            ),
+        ]
     )
     def list(self, request, *args, **kwargs) -> Response:
         return super().list(request, *args, **kwargs)
@@ -449,11 +460,28 @@ class PostViewSet(viewsets.ModelViewSet):
                 for the post to be created.
         """
         hashtag_data = serializer.validated_data.pop("hashtags", [])
-        post = serializer.save(author=self.request.user.profile)
+        scheduled_at = serializer.validated_data.pop("scheduled_at", None)
 
-        for caption in hashtag_data:
-            hashtag, created = HashTag.objects.get_or_create(caption=caption)
-            post.hashtags.add(hashtag)
+        post_data = {
+            "title": serializer.validated_data["title"],
+            "content": serializer.validated_data["content"],
+            "author_id": self.request.user.profile.pk,
+            "hashtags": hashtag_data,
+            "image": serializer.validated_data.get("image"),
+        }
+
+        if scheduled_at:
+            cet = zoneinfo.ZoneInfo("Europe/Prague")
+            scheduled_at = scheduled_at.replace(tzinfo=cet)
+            create_scheduled_post.apply_async(
+                eta=scheduled_at,
+                kwargs={"post_data": post_data}
+            )
+        else:
+            post = serializer.save(author=self.request.user.profile)
+            for caption in hashtag_data:
+                hashtag, _ = HashTag.objects.get_or_create(caption=caption)
+                post.hashtags.add(hashtag)
 
     def create(self, request, *args, **kwargs) -> Response:
         """
@@ -473,9 +501,8 @@ class PostViewSet(viewsets.ModelViewSet):
         url_path="upload-image",
         permission_classes=[IsAuthenticated, IsOwnerOrReadOnly],
     )
-    def upload_image(self, request, pk: int=None) -> Response:
+    def upload_image(self, request, pk: int = None) -> Response:
         post = get_object_or_404(Post, pk=pk)
-        # with object-level permission, we need to check the permission manually
         self.check_object_permissions(request, post)
         post.image = request.data["image"]
         post.save()
@@ -507,7 +534,9 @@ class PostViewSet(viewsets.ModelViewSet):
             "followee",
             flat=True
         )
-        followees_posts = self.get_queryset().filter(author__in=followees_profiles)
+        followees_posts = self.get_queryset().filter(
+            author__in=followees_profiles
+        )
         serializer = PostSerializer(followees_posts, many=True)
         return Response(serializer.data)
 
@@ -515,7 +544,7 @@ class PostViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=["post"],
         url_path="like",
-        permission_classes=[IsAuthenticated]
+        permission_classes=[IsAuthenticated],
     )
     def like(self, request, pk: int) -> Response:
         post = get_object_or_404(Post, pk=pk)
@@ -537,7 +566,7 @@ class PostViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=["post"],
         url_path="unlike",
-        permission_classes=[IsAuthenticated]
+        permission_classes=[IsAuthenticated],
     )
     def unlike(self, request, pk: int) -> Response:
         post = get_object_or_404(Post, pk=pk)
@@ -567,6 +596,7 @@ class PostViewSet(viewsets.ModelViewSet):
         serialzer = PostSerializer(liked_posts, many=True)
         return Response(serialzer.data)
 
+
 @extend_schema(
     parameters=[
         OpenApiParameter(
@@ -579,7 +609,7 @@ class PostViewSet(viewsets.ModelViewSet):
             name="id",
             type=OpenApiTypes.INT,
             description="Primary key of the comment.",
-            location=OpenApiParameter.PATH
+            location=OpenApiParameter.PATH,
         ),
     ],
 )
@@ -592,7 +622,7 @@ class CommentViewSet(viewsets.ModelViewSet):
             post_id=self.kwargs["post_pk"]
         ).prefetch_related("author")
         return queryset
-    
+
     def perform_create(self, serializer: CommentSerializer) -> None:
         post = get_object_or_404(Post, pk=self.kwargs.get("post_pk"))
         serializer.save(author=self.request.user.profile, post=post)
