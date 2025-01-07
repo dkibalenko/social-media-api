@@ -71,3 +71,6 @@ celery -A social_media_api beat -l INFO --scheduler django_celery_beat.scheduler
 - Commit your changes (`git commit -am 'message'`)
 - Push the branch to GitHub (`git push origin <new_branch_name>`)
 - Create a new Pull Request
+
+## **Database Schema**
+![Social Media Api Database Schema](SOCIAL_MEDIA_API.png)
