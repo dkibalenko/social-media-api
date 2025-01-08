@@ -5,3 +5,5 @@ db.sqlite3
 notes.txt
 files/
 .env
+.coverage
+coverage.xml
