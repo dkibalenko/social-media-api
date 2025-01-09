@@ -48,6 +48,7 @@ from social_network.tasks import create_scheduled_post
 
 class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ProfileSerializer
+    permission_classes = (IsAuthenticated,)
 
     def get_object(self) -> Profile:
         return generics.get_object_or_404(self.get_queryset())
@@ -63,6 +64,16 @@ class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
             )
         )
 
+    @extend_schema(
+        summary="Delete the current user's profile",
+        description="Delete the profile of the currently authenticated user.",
+        responses={
+            204: OpenApiResponse(description="Profile deleted successfully."),
+            401: OpenApiResponse(
+                description="Authentication credentials were not provided."
+            ),
+        },
+    )
     def destroy(self, request, *args, **kwargs) -> Response:
         profile = self.get_object()
         user = profile.user
@@ -151,19 +162,6 @@ class CurrentUserProfileView(generics.RetrieveUpdateDestroyAPIView):
     def put(self, request, *args, **kwargs) -> Response:
         return super().update(request, *args, **kwargs)
 
-    @extend_schema(
-        summary="Delete the current user's profile",
-        description="Delete the profile of the currently authenticated user.",
-        responses={
-            204: OpenApiResponse(description="Profile deleted successfully."),
-            401: OpenApiResponse(
-                description="Authentication credentials were not provided."
-            ),
-        },
-    )
-    def delete(self, request, *args, **kwargs) -> Response:
-        return super().destroy(request, *args, **kwargs)
-
 
 class ProfileViewSet(
     mixins.ListModelMixin,
@@ -177,7 +175,6 @@ class ProfileViewSet(
     update or delete their own profiles.
     The view is restricted to authenticated users only.
     """
-
     permission_classes = (IsOwnerOrReadOnly,)
 
     def get_serializer_class(self) -> serializers.BaseSerializer:
