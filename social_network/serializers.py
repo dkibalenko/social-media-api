@@ -35,7 +35,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         """"
         If no new profile image in the request, keep the existing one.
         """
-        if not validated_data["profile_image" ]:
+        if not validated_data.get("profile_image"):
             validated_data["profile_image"] = instance.profile_image
         return super().update(instance, validated_data)
 
