@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from social_network.models import FollowingInteraction, Profile, Post, HashTag, Like, Comment
+from social_network.models import FollowingInteraction, Post, HashTag, Like
 
 
 class PostViewSetTests(APITestCase):
