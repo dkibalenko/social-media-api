@@ -54,6 +54,23 @@ celery -A social_media_api worker -l info
 celery -A social_media_api beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
 ```
 
+## Installing with Docker
+
+- Copy .env.sample to .env and populate it with your environment variables
+```bash
+docker compose build
+docker compose up
+```
+- Bash into your Django container
+```bash
+docker exec -it <your_django_container_name> bash
+```
+- Run the createsuperuser Command and populate the database:
+```bash
+python manage.py createsuperuser
+python manage.py loaddata sample_data.json
+```
+
 ## Getting access
 
 - Get access token via `/api/user/token/`
