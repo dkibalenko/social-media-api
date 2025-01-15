@@ -1,0 +1,124 @@
+[
+  {
+    "model": "user.user",
+    "pk": 1,
+    "fields": {
+      "email": "john@example.com",
+      "password": "pbkdf2_sha256$150000$abCDEfg0x123$abcdefghi...",
+      "is_staff": false,
+      "is_superuser": false,
+      "is_active": true
+    }
+  },
+  {
+    "model": "user.user",
+    "pk": 2,
+    "fields": {
+      "email": "jane@example.com",
+      "password": "pbkdf2_sha256$150000$jklMNOpq09876$lmnopqrst...",
+      "is_staff": false,
+      "is_superuser": false,
+      "is_active": true
+    }
+  },
+  {
+    "model": "social_network.profile",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "username": "john_doe",
+      "first_name": "John",
+      "last_name": "Doe",
+      "bio": "Hello! I'm John.",
+      "birth_date": "1990-01-01"
+    }
+  },
+  {
+    "model": "social_network.profile",
+    "pk": 2,
+    "fields": {
+      "user": 2,
+      "username": "jane_doe",
+      "first_name": "Jane",
+      "last_name": "Doe",
+      "bio": "Hi there! I'm Jane.",
+      "birth_date": "1992-02-02"
+    }
+  },
+  {
+    "model": "social_network.post",
+    "pk": 1,
+    "fields": {
+      "title": "First Post",
+      "content": "This is my first post!",
+      "author": 1,
+      "created_at": "2023-01-01T12:00:00Z"
+    }
+  },
+  {
+    "model": "social_network.post",
+    "pk": 2,
+    "fields": {
+      "title": "Another Post",
+      "content": "Here's another post.",
+      "author": 2,
+      "created_at": "2023-01-02T12:00:00Z"
+    }
+  },
+  {
+    "model": "social_network.followinginteraction",
+    "pk": 1,
+    "fields": {
+      "follower": 1,
+      "followee": 2,
+      "followed_at": "2023-01-01T12:00:00Z"
+    }
+  },
+  {
+    "model": "social_network.followinginteraction",
+    "pk": 2,
+    "fields": {
+      "follower": 2,
+      "followee": 1,
+      "followed_at": "2023-01-01T12:00:00Z"
+    }
+  },
+  {
+    "model": "social_network.like",
+    "pk": 1,
+    "fields": {
+      "post": 1,
+      "profile": 2,
+      "liked_at": "2023-01-01T12:00:00Z"
+    }
+  },
+  {
+    "model": "social_network.like",
+    "pk": 2,
+    "fields": {
+      "post": 2,
+      "profile": 1,
+      "liked_at": "2023-01-01T12:00:00Z"
+    }
+  },
+  {
+    "model": "social_network.comment",
+    "pk": 1,
+    "fields": {
+      "post": 1,
+      "author": 2,
+      "content": "Nice post!",
+      "commented_at": "2023-01-01T13:00:00Z"
+    }
+  },
+  {
+    "model": "social_network.comment",
+    "pk": 2,
+    "fields": {
+      "post": 2,
+      "author": 1,
+      "content": "Thank you!",
+      "commented_at": "2023-01-02T13:00:00Z"
+    }
+  }
+]
