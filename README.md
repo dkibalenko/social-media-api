@@ -46,6 +46,8 @@ pip install -r requirements.txt
 set SECRET_KEY
 set CELERY_BROKER_URL
 set CELERY_RESULT_BACKEND
+# Create new Postgres DB & User
+# Copy .env.sample to .env and populate it with your environment variables
 python manage.py migrate
 python manage.py runserver
 # Run Celery to enable scheduled posts
